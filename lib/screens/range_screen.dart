@@ -68,6 +68,9 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
   bool _reticleInitialized = false;
   double _baseMilToPx = 20.0;
   double _zoom = 1.0;
+  Size _vpSize = Size.zero;
+  bool _isPanningScene = false;
+  double _zoomAtGestureStart = 1.0;
 
   double get _milToPx => _baseMilToPx * _zoom;
 
@@ -91,6 +94,7 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
   }
 
   void _initReticle(Size viewportSize) {
+    _vpSize = viewportSize; // always current
     if (!_reticleInitialized) {
       _baseMilToPx = viewportSize.height / 35.0;
       _reticleOffset = Offset(viewportSize.width / 2, viewportSize.height / 2);
@@ -99,23 +103,32 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
     }
   }
 
-  void _onScaleStart(ScaleStartDetails details) {}
+  void _onScaleStart(ScaleStartDetails details) {
+    _zoomAtGestureStart = _zoom;
+    // Commit zone at gesture start so it stays stable for the whole drag.
+    // Left half = ORIENT (pan scene), right half = AIM (move reticle).
+    _isPanningScene = details.localFocalPoint.dx < _vpSize.width / 2;
+  }
 
   void _onScaleUpdate(ScaleUpdateDetails details, Size viewportSize) {
     if (_bannerShowing) return;
     setState(() {
       if (details.pointerCount >= 2) {
-        // Two fingers: pan the scene (background + targets) without moving the
-        // reticle. Dividing by zoom keeps pan speed 1:1 regardless of zoom level.
+        // Two fingers anywhere = pinch-to-zoom. Min 1.0 keeps landscape full-screen.
+        _zoom = (_zoomAtGestureStart * details.scale).clamp(1.0, 6.0);
+      } else if (_isPanningScene) {
         _sceneOffset = Offset(
           _sceneOffset.dx + details.focalPointDelta.dx,
           _sceneOffset.dy + details.focalPointDelta.dy,
         );
       } else {
-        // One finger: move the reticle (aim)
+        // Allow reticle to travel well off-screen so large elevation/wind holds
+        // can be applied. Bound loosely so it can't be lost entirely.
         _reticleOffset = Offset(
-          (_reticleOffset.dx + details.focalPointDelta.dx).clamp(0.0, viewportSize.width),
-          (_reticleOffset.dy + details.focalPointDelta.dy).clamp(0.0, viewportSize.height),
+          (_reticleOffset.dx + details.focalPointDelta.dx)
+              .clamp(-viewportSize.width * 2, viewportSize.width * 3),
+          (_reticleOffset.dy + details.focalPointDelta.dy)
+              .clamp(-viewportSize.height * 2, viewportSize.height * 3),
         );
       }
     });
@@ -123,7 +136,7 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
 
   void _adjustZoom(double delta) {
     setState(() {
-      _zoom = (_zoom + delta).clamp(0.5, 6.0);
+      _zoom = (_zoom + delta).clamp(1.0, 6.0);
     });
   }
 
@@ -228,20 +241,41 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
                             onScaleStart: _onScaleStart,
                             onScaleUpdate: (d) => _onScaleUpdate(d, vpSize),
                           ),
-                          // Zoom buttons
+
+                          // ORIENT hint — bottom-left
+                          const Positioned(
+                            left: 10,
+                            bottom: 10,
+                            child: _ZoneHint(
+                              icon: Icons.open_with,
+                              label: 'ORIENT',
+                            ),
+                          ),
+
+                          // AIM hint + zoom buttons — bottom-right
                           Positioned(
                             right: 10,
                             bottom: 10,
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                _ZoomButton(
-                                  icon: Icons.add,
-                                  onTap: () => _adjustZoom(0.25),
+                                const _ZoneHint(
+                                  icon: Icons.gps_fixed,
+                                  label: 'AIM',
                                 ),
-                                const SizedBox(height: 4),
-                                _ZoomButton(
-                                  icon: Icons.remove,
-                                  onTap: () => _adjustZoom(-0.25),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    _ZoomButton(
+                                      icon: Icons.remove,
+                                      onTap: () => _adjustZoom(-0.25),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    _ZoomButton(
+                                      icon: Icons.add,
+                                      onTap: () => _adjustZoom(0.25),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -456,6 +490,35 @@ class _ZoomButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(6),
         ),
         child: Icon(icon, color: const Color(0xFF8BA888), size: 20),
+      ),
+    );
+  }
+}
+
+class _ZoneHint extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _ZoneHint({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: 0.25,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 13),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.robotoMono(
+              color: Colors.white,
+              fontSize: 9,
+              letterSpacing: 1.5,
+            ),
+          ),
+        ],
       ),
     );
   }

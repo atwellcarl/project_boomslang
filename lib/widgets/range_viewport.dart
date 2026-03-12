@@ -87,12 +87,20 @@ class _RangeViewportPainter extends CustomPainter {
   }
 
   void _drawLandscape(Canvas canvas, Size size) {
-    final skyRect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final skyGrad = const LinearGradient(
+    // Extend all drawing well beyond the viewport so that panning and zooming
+    // never reveals a hard edge. The ClipRect in RangeViewport handles trimming.
+    final double xL = -size.width  * 4;
+    final double xR =  size.width  * 5;
+    final double yT = -size.height * 4;
+    final double yB =  size.height * 5;
+
+    // Sky gradient — covers the entire extended world rect
+    final skyRect = Rect.fromLTRB(xL, yT, xR, yB);
+    final skyGrad = LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      stops: [0.0, 0.55, 0.68, 1.0],
-      colors: [
+      stops: const [0.0, 0.55, 0.68, 1.0],
+      colors: const [
         Color(0xFF0D1A26),
         Color(0xFF1A2E3A),
         Color(0xFF1A2A18),
@@ -101,28 +109,43 @@ class _RangeViewportPainter extends CustomPainter {
     );
     canvas.drawRect(skyRect, Paint()..shader = skyGrad.createShader(skyRect));
 
+    // Ridge — flat at each edge, curved profile across the original viewport width
     final ridgePaint = Paint()..color = const Color(0xFF1A2E1A);
     final ridgePath = Path();
-    ridgePath.moveTo(0, size.height * 0.50);
-    ridgePath.cubicTo(size.width * 0.15, size.height * 0.44, size.width * 0.35, size.height * 0.48, size.width * 0.50, size.height * 0.46);
-    ridgePath.cubicTo(size.width * 0.65, size.height * 0.44, size.width * 0.80, size.height * 0.50, size.width, size.height * 0.48);
-    ridgePath.lineTo(size.width, size.height);
-    ridgePath.lineTo(0, size.height);
+    ridgePath.moveTo(xL, size.height * 0.50);
+    ridgePath.lineTo(0, size.height * 0.50);
+    ridgePath.cubicTo(size.width * 0.15, size.height * 0.44,
+                      size.width * 0.35, size.height * 0.48,
+                      size.width * 0.50, size.height * 0.46);
+    ridgePath.cubicTo(size.width * 0.65, size.height * 0.44,
+                      size.width * 0.80, size.height * 0.50,
+                      size.width,        size.height * 0.48);
+    ridgePath.lineTo(xR, size.height * 0.48);
+    ridgePath.lineTo(xR, yB);
+    ridgePath.lineTo(xL, yB);
     ridgePath.close();
     canvas.drawPath(ridgePath, ridgePaint);
 
+    // Berm — same treatment
     final bermPaint = Paint()..color = const Color(0xFF152010);
     final bermPath = Path();
-    bermPath.moveTo(0, size.height * 0.65);
-    bermPath.cubicTo(size.width * 0.20, size.height * 0.60, size.width * 0.45, size.height * 0.67, size.width * 0.60, size.height * 0.63);
-    bermPath.cubicTo(size.width * 0.75, size.height * 0.59, size.width * 0.88, size.height * 0.65, size.width, size.height * 0.63);
-    bermPath.lineTo(size.width, size.height);
-    bermPath.lineTo(0, size.height);
+    bermPath.moveTo(xL, size.height * 0.65);
+    bermPath.lineTo(0, size.height * 0.65);
+    bermPath.cubicTo(size.width * 0.20, size.height * 0.60,
+                     size.width * 0.45, size.height * 0.67,
+                     size.width * 0.60, size.height * 0.63);
+    bermPath.cubicTo(size.width * 0.75, size.height * 0.59,
+                     size.width * 0.88, size.height * 0.65,
+                     size.width,        size.height * 0.63);
+    bermPath.lineTo(xR, size.height * 0.63);
+    bermPath.lineTo(xR, yB);
+    bermPath.lineTo(xL, yB);
     bermPath.close();
     canvas.drawPath(bermPath, bermPaint);
 
+    // Dark ground strip
     canvas.drawRect(
-      Rect.fromLTWH(0, size.height * 0.78, size.width, size.height * 0.22),
+      Rect.fromLTRB(xL, size.height * 0.78, xR, yB),
       Paint()..color = const Color(0xFF0F1A0A),
     );
   }
