@@ -76,7 +76,7 @@ class _WindTrainerScreenState extends ConsumerState<WindTrainerScreen>
   final _player = AudioPlayer();
   late AnimationController _bannerController;
   bool _isCorrect = false;
-  bool _bannerShowing = false;
+  int _bannerGen = 0;
 
   @override
   void initState() {
@@ -95,21 +95,22 @@ class _WindTrainerScreenState extends ConsumerState<WindTrainerScreen>
   }
 
   Future<void> _showBanner(bool isCorrect, _TrainerNotifier notifier) async {
-    if (_bannerShowing) return;
-    _bannerShowing = true;
+    _bannerGen++;
+    final gen = _bannerGen;
     setState(() => _isCorrect = isCorrect);
 
     // Advance scenario immediately on hit; banner is just a notification overlay
     if (isCorrect) notifier.nextScenario();
 
+    _bannerController.stop();
     await _bannerController.forward(from: 0);
+    if (!mounted || gen != _bannerGen) return;
     await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
+    if (!mounted || gen != _bannerGen) return;
     await _bannerController.reverse();
-    if (!mounted) return;
+    if (!mounted || gen != _bannerGen) return;
 
     if (!isCorrect) notifier.reEngage();
-    _bannerShowing = false;
   }
 
   @override
