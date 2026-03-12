@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/ballistic_profiles.dart';
 import '../models/ballistic_profile.dart';
-import '../models/difficulty_mode.dart';
 import 'wind_trainer_screen.dart';
 import 'range_screen.dart';
+import 'milling_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,7 +15,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedProfileIndex = 0;
-  DifficultyMode _difficulty = DifficultyMode.basic;
 
   BallisticProfile get _selectedProfile => kBallisticProfiles[_selectedProfileIndex];
 
@@ -63,94 +62,79 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Profile cards
-              ...kBallisticProfiles.asMap().entries.map((entry) {
-                final i = entry.key;
-                final profile = entry.value;
-                final selected = i == _selectedProfileIndex;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedProfileIndex = i),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
-                      decoration: BoxDecoration(
-                        color: selected ? const Color(0xFF1A2E1F) : const Color(0xFF151B22),
-                        border: Border.all(
-                          color: selected ? const Color(0xFF4A7C59) : const Color(0xFF2A3A2A),
-                          width: 1.5,
+              // Profile cards — independent scroll so more loads can be added
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 110),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: kBallisticProfiles.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final profile = entry.value;
+                      final selected = i == _selectedProfileIndex;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: GestureDetector(
+                          onTap: () => setState(() => _selectedProfileIndex = i),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 16, horizontal: 18),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? const Color(0xFF1A2E1F)
+                                  : const Color(0xFF151B22),
+                              border: Border.all(
+                                color: selected
+                                    ? const Color(0xFF4A7C59)
+                                    : const Color(0xFF2A3A2A),
+                                width: 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  selected
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_unchecked,
+                                  color: selected
+                                      ? const Color(0xFF4A7C59)
+                                      : Colors.white24,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 14),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      profile.name,
+                                      style: GoogleFonts.robotoMono(
+                                        color: selected
+                                            ? Colors.white
+                                            : Colors.white60,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      '${profile.tableDistances.first}–${profile.tableDistances.last}M  •  ${profile.tableWindSpeeds.map((s) => '${s.toInt()}mph').join('/')}',
+                                      style: GoogleFonts.robotoMono(
+                                        color: selected
+                                            ? const Color(0xFF8BA888)
+                                            : Colors.white24,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                            color: selected ? const Color(0xFF4A7C59) : Colors.white24,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 14),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                profile.name,
-                                style: GoogleFonts.robotoMono(
-                                  color: selected ? Colors.white : Colors.white60,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                '${profile.tableDistances.first}–${profile.tableDistances.last}M  •  ${profile.tableWindSpeeds.map((s) => '${s.toInt()}mph').join('/')}',
-                                style: GoogleFonts.robotoMono(
-                                  color: selected ? const Color(0xFF8BA888) : Colors.white24,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+                      );
+                    }).toList(),
                   ),
-                );
-              }),
-
-              const SizedBox(height: 40),
-
-              // Difficulty label
-              Text(
-                'DIFFICULTY',
-                style: GoogleFonts.robotoMono(
-                  color: const Color(0xFF8BA888),
-                  fontSize: 11,
-                  letterSpacing: 3,
                 ),
-              ),
-              const SizedBox(height: 12),
-
-              // Difficulty toggle
-              IntrinsicHeight(
-               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _DifficultyChip(
-                    label: 'BASIC',
-                    subtitle: 'Full value only',
-                    selected: _difficulty == DifficultyMode.basic,
-                    onTap: () => setState(() => _difficulty = DifficultyMode.basic),
-                  ),
-                  const SizedBox(width: 10),
-                  _DifficultyChip(
-                    label: 'EXPERT',
-                    subtitle: 'All clock positions',
-                    selected: _difficulty == DifficultyMode.expert,
-                    onTap: () => setState(() => _difficulty = DifficultyMode.expert),
-                  ),
-                ],
-               ),
               ),
 
               const SizedBox(height: 40),
@@ -166,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Wind Call button
+              // Wind Call
               _ToolCard(
                 title: 'WIND CALL',
                 subtitle: 'Read wind — enter MRAD holdover',
@@ -174,17 +158,29 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => WindTrainerScreen(
-                      profile: _selectedProfile,
-                      difficulty: _difficulty,
-                    ),
+                    builder: (_) => WindTrainerScreen(profile: _selectedProfile),
                   ),
                 ),
               ),
 
               const SizedBox(height: 10),
 
-              // Range Engagement button
+              // Target Milling
+              _ToolCard(
+                title: 'TARGET MILLING',
+                subtitle: 'Measure target — estimate range with reticle',
+                icon: Icons.straighten,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const MillingScreen(),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // Range Engagement
               _ToolCard(
                 title: 'RANGE ENGAGEMENT',
                 subtitle: 'Drag reticle — apply elevation + wind hold',
@@ -192,69 +188,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => RangeScreen(
-                      profile: _selectedProfile,
-                      difficulty: _difficulty,
-                    ),
+                    builder: (_) => RangeScreen(profile: _selectedProfile),
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
-class _DifficultyChip extends StatelessWidget {
-  final String label;
-  final String subtitle;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _DifficultyChip({
-    required this.label,
-    required this.subtitle,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-          decoration: BoxDecoration(
-            color: selected ? const Color(0xFF1A2E1F) : const Color(0xFF151B22),
-            border: Border.all(
-              color: selected ? const Color(0xFF4A7C59) : const Color(0xFF2A3A2A),
-              width: 1.5,
-            ),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: GoogleFonts.robotoMono(
-                  color: selected ? Colors.white : Colors.white60,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: GoogleFonts.robotoMono(
-                  color: selected ? const Color(0xFF8BA888) : Colors.white24,
-                  fontSize: 10,
-                ),
-              ),
+              const SizedBox(height: 32),
             ],
           ),
         ),

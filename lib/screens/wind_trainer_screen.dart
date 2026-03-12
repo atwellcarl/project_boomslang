@@ -63,9 +63,8 @@ final _trainerProvider = StateNotifierProvider.family<_TrainerNotifier, _Trainer
 
 class WindTrainerScreen extends ConsumerStatefulWidget {
   final BallisticProfile profile;
-  final DifficultyMode difficulty;
 
-  const WindTrainerScreen({super.key, required this.profile, required this.difficulty});
+  const WindTrainerScreen({super.key, required this.profile});
 
   @override
   ConsumerState<WindTrainerScreen> createState() => _WindTrainerScreenState();
@@ -77,6 +76,7 @@ class _WindTrainerScreenState extends ConsumerState<WindTrainerScreen>
   late AnimationController _bannerController;
   bool _isCorrect = false;
   int _bannerGen = 0;
+  DifficultyMode _difficulty = DifficultyMode.basic;
 
   @override
   void initState() {
@@ -115,7 +115,7 @@ class _WindTrainerScreenState extends ConsumerState<WindTrainerScreen>
 
   @override
   Widget build(BuildContext context) {
-    final key = (widget.profile, widget.difficulty);
+    final key = (widget.profile, _difficulty);
     final notifier = ref.read(_trainerProvider(key).notifier);
 
     ref.listen(_trainerProvider(key), (prev, next) {
@@ -152,6 +152,12 @@ class _WindTrainerScreenState extends ConsumerState<WindTrainerScreen>
           children: [
             Column(
               children: [
+                // Difficulty toggle
+                _DifficultyBar(
+                  difficulty: _difficulty,
+                  onChanged: (d) => setState(() => _difficulty = d),
+                ),
+
                 // Distance display
                 Container(
                   width: double.infinity,
@@ -231,6 +237,75 @@ class _WindTrainerScreenState extends ConsumerState<WindTrainerScreen>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared difficulty toggle bar
+// ---------------------------------------------------------------------------
+
+class _DifficultyBar extends StatelessWidget {
+  final DifficultyMode difficulty;
+  final ValueChanged<DifficultyMode> onChanged;
+
+  const _DifficultyBar({required this.difficulty, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF0D1117),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      child: Row(
+        children: [
+          _Chip(
+            label: 'BASIC',
+            selected: difficulty == DifficultyMode.basic,
+            onTap: () => onChanged(DifficultyMode.basic),
+          ),
+          const SizedBox(width: 8),
+          _Chip(
+            label: 'EXPERT',
+            selected: difficulty == DifficultyMode.expert,
+            onTap: () => onChanged(DifficultyMode.expert),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _Chip({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF1A2E1F) : const Color(0xFF151B22),
+          border: Border.all(
+            color: selected ? const Color(0xFF4A7C59) : const Color(0xFF2A3A2A),
+            width: 1.5,
+          ),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.robotoMono(
+            color: selected ? Colors.white : Colors.white38,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.5,
+          ),
         ),
       ),
     );

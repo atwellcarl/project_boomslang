@@ -50,9 +50,8 @@ final _rangeProvider = StateNotifierProvider.family<_RangeNotifier, _RangeState,
 
 class RangeScreen extends ConsumerStatefulWidget {
   final BallisticProfile profile;
-  final DifficultyMode difficulty;
 
-  const RangeScreen({super.key, required this.profile, required this.difficulty});
+  const RangeScreen({super.key, required this.profile});
 
   @override
   ConsumerState<RangeScreen> createState() => _RangeScreenState();
@@ -74,6 +73,7 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
 
   double get _milToPx => _baseMilToPx * _zoom;
 
+  DifficultyMode _difficulty = DifficultyMode.basic;
   bool _isCorrect = false;
   bool _bannerShowing = false;
 
@@ -190,7 +190,7 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final key = (widget.profile, widget.difficulty);
+    final key = (widget.profile, _difficulty);
     final notifier = ref.read(_rangeProvider(key).notifier);
     final state = ref.watch(_rangeProvider(key));
     final scenario = state.scenario;
@@ -217,8 +217,8 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            // Viewport height = total height minus info strip (80) - fire btn (58) - spacers (36)
-            final vpHeight = constraints.maxHeight - 80 - 58 - 36;
+            // Viewport height = total height minus difficulty bar (38) - info strip (80) - fire btn (58) - spacers (36)
+            final vpHeight = constraints.maxHeight - 38 - 80 - 58 - 36;
             final vpSize = Size(constraints.maxWidth, vpHeight);
             _initReticle(vpSize);
 
@@ -226,6 +226,15 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
               children: [
                 Column(
                   children: [
+                    // ---- Difficulty toggle ----
+                    _DifficultyBar(
+                      difficulty: _difficulty,
+                      onChanged: (d) => setState(() {
+                        _difficulty = d;
+                        _reticleInitialized = false;
+                      }),
+                    ),
+
                     // ---- Range viewport ----
                     SizedBox(
                       width: constraints.maxWidth,
@@ -519,6 +528,75 @@ class _ZoneHint extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Difficulty toggle bar
+// ---------------------------------------------------------------------------
+
+class _DifficultyBar extends StatelessWidget {
+  final DifficultyMode difficulty;
+  final ValueChanged<DifficultyMode> onChanged;
+
+  const _DifficultyBar({required this.difficulty, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF0D1117),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      child: Row(
+        children: [
+          _Chip(
+            label: 'BASIC',
+            selected: difficulty == DifficultyMode.basic,
+            onTap: () => onChanged(DifficultyMode.basic),
+          ),
+          const SizedBox(width: 8),
+          _Chip(
+            label: 'EXPERT',
+            selected: difficulty == DifficultyMode.expert,
+            onTap: () => onChanged(DifficultyMode.expert),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _Chip({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF1A2E1F) : const Color(0xFF151B22),
+          border: Border.all(
+            color: selected ? const Color(0xFF4A7C59) : const Color(0xFF2A3A2A),
+            width: 1.5,
+          ),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.robotoMono(
+            color: selected ? Colors.white : Colors.white38,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.5,
+          ),
+        ),
       ),
     );
   }
