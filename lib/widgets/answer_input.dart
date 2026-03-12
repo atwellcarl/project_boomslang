@@ -25,6 +25,7 @@ class AnswerInput extends StatefulWidget {
 
 class _AnswerInputState extends State<AnswerInput> {
   late FixedExtentScrollController _milController;
+  bool _milScrolling = false;
 
   static const int _itemCount = 51; // 0.0 to 5.0 in 0.1 steps
 
@@ -85,7 +86,16 @@ class _AnswerInputState extends State<AnswerInput> {
                     ),
                   ),
                   // Drum wheel
-                  ListWheelScrollView.useDelegate(
+                  NotificationListener<ScrollNotification>(
+                    onNotification: (n) {
+                      if (n is ScrollStartNotification && !_milScrolling) {
+                        setState(() => _milScrolling = true);
+                      } else if (n is ScrollEndNotification && _milScrolling) {
+                        setState(() => _milScrolling = false);
+                      }
+                      return false;
+                    },
+                  child: ListWheelScrollView.useDelegate(
                     controller: _milController,
                     physics: widget.submitted
                         ? const NeverScrollableScrollPhysics()
@@ -118,7 +128,7 @@ class _AnswerInputState extends State<AnswerInput> {
                         );
                       },
                     ),
-                  ),
+                  )),
                 ],
               ),
             ),
@@ -160,7 +170,7 @@ class _AnswerInputState extends State<AnswerInput> {
         SizedBox(
           width: 200,
           child: ElevatedButton(
-            onPressed: widget.submitted ? null : widget.onSubmit,
+            onPressed: widget.submitted || _milScrolling ? null : widget.onSubmit,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF4A7C59),
               disabledBackgroundColor: const Color(0xFF2A3A2A),
