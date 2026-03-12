@@ -1,0 +1,1 @@
+enum DifficultyMode { basic, expert }

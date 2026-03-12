@@ -1,0 +1,237 @@
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../models/ballistic_profile.dart';
+import '../models/difficulty_mode.dart';
+import '../models/wind_scenario.dart';
+import '../services/scenario_generator.dart';
+import '../widgets/wind_dial.dart';
+import '../widgets/answer_input.dart';
+
+class _TrainerState {
+  final WindScenario scenario;
+  final double userMil;
+  final bool userIsRight;
+  final bool submitted;
+
+  const _TrainerState({
+    required this.scenario,
+    this.userMil = 0.0,
+    this.userIsRight = true,
+    this.submitted = false,
+  });
+
+  bool get isCorrect {
+    final milCorrect = (userMil - scenario.correctMil).abs() <= 0.1;
+    final dirCorrect = scenario.correctMil < 0.05 || userIsRight == scenario.isRightWind;
+    return milCorrect && dirCorrect;
+  }
+
+  _TrainerState copyWith({
+    WindScenario? scenario,
+    double? userMil,
+    bool? userIsRight,
+    bool? submitted,
+  }) {
+    return _TrainerState(
+      scenario: scenario ?? this.scenario,
+      userMil: userMil ?? this.userMil,
+      userIsRight: userIsRight ?? this.userIsRight,
+      submitted: submitted ?? this.submitted,
+    );
+  }
+}
+
+class _TrainerNotifier extends StateNotifier<_TrainerState> {
+  final BallisticProfile profile;
+  final DifficultyMode difficulty;
+
+  _TrainerNotifier(this.profile, this.difficulty)
+      : super(_TrainerState(scenario: ScenarioGenerator.generate(profile, difficulty)));
+
+  void setMil(double value) => state = state.copyWith(userMil: value);
+  void setDirection(bool isRight) => state = state.copyWith(userIsRight: isRight);
+  void submit() => state = state.copyWith(submitted: true);
+  void reEngage() => state = state.copyWith(submitted: false);
+  void nextScenario() => state = _TrainerState(scenario: ScenarioGenerator.generate(profile, difficulty));
+}
+
+final _trainerProvider = StateNotifierProvider.family<_TrainerNotifier, _TrainerState, (BallisticProfile, DifficultyMode)>(
+  (ref, key) => _TrainerNotifier(key.$1, key.$2),
+);
+
+class WindTrainerScreen extends ConsumerStatefulWidget {
+  final BallisticProfile profile;
+  final DifficultyMode difficulty;
+
+  const WindTrainerScreen({super.key, required this.profile, required this.difficulty});
+
+  @override
+  ConsumerState<WindTrainerScreen> createState() => _WindTrainerScreenState();
+}
+
+class _WindTrainerScreenState extends ConsumerState<WindTrainerScreen>
+    with SingleTickerProviderStateMixin {
+  final _player = AudioPlayer();
+  late AnimationController _bannerController;
+  bool _isCorrect = false;
+  bool _bannerShowing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _bannerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
+  }
+
+  @override
+  void dispose() {
+    _bannerController.dispose();
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _showBanner(bool isCorrect, _TrainerNotifier notifier) async {
+    if (_bannerShowing) return;
+    _bannerShowing = true;
+    setState(() => _isCorrect = isCorrect);
+
+    // Advance scenario immediately on hit; banner is just a notification overlay
+    if (isCorrect) notifier.nextScenario();
+
+    await _bannerController.forward(from: 0);
+    await Future.delayed(const Duration(milliseconds: 900));
+    if (!mounted) return;
+    await _bannerController.reverse();
+    if (!mounted) return;
+
+    if (!isCorrect) notifier.reEngage();
+    _bannerShowing = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final key = (widget.profile, widget.difficulty);
+    final notifier = ref.read(_trainerProvider(key).notifier);
+
+    ref.listen(_trainerProvider(key), (prev, next) {
+      if (next.submitted && !(prev?.submitted ?? false)) {
+        _player.play(AssetSource(next.isCorrect ? 'sounds/hit.wav' : 'sounds/miss.wav'));
+        _showBanner(next.isCorrect, notifier);
+      }
+    });
+
+    final state = ref.watch(_trainerProvider(key));
+    final scenario = state.scenario;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF0D1117),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0D1117),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF8BA888)),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          widget.profile.shortName,
+          style: GoogleFonts.robotoMono(
+            color: const Color(0xFF8BA888),
+            fontSize: 14,
+            letterSpacing: 2,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                // Distance display
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                  color: const Color(0xFF151B22),
+                  child: Text(
+                    '${scenario.distanceMeters}M',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.robotoMono(
+                      color: Colors.white,
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 6,
+                    ),
+                  ),
+                ),
+
+                // Wind dial
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    child: WindDial(
+                      clockPosition: scenario.clockPosition,
+                      windSpeedMph: scenario.windSpeedMph,
+                    ),
+                  ),
+                ),
+
+                // Answer input
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: AnswerInput(
+                    milValue: state.userMil,
+                    isRight: state.userIsRight,
+                    onMilChanged: notifier.setMil,
+                    onDirectionChanged: notifier.setDirection,
+                    onSubmit: notifier.submit,
+                    submitted: state.submitted,
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+              ],
+            ),
+
+            // Drop-down banner overlay
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: AnimatedBuilder(
+                animation: _bannerController,
+                builder: (context, child) => ClipRect(
+                  child: Align(
+                    heightFactor: _bannerController.value,
+                    alignment: Alignment.topCenter,
+                    child: child,
+                  ),
+                ),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
+                  color: _isCorrect
+                      ? const Color(0xFF4A7C59).withAlpha(230)
+                      : const Color(0xFF8B3A3A).withAlpha(230),
+                  child: Text(
+                    _isCorrect ? 'HIT — NEXT TARGET' : 'MISS — RE-ENGAGE!',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.robotoMono(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 3,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
