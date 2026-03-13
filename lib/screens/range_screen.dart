@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/ballistic_profile.dart';
 import '../models/difficulty_mode.dart';
 import '../models/range_scenario.dart';
+import '../models/range_target.dart';
 import '../services/range_scenario_generator.dart';
 import '../widgets/range_viewport.dart';
 
@@ -15,15 +16,28 @@ import '../widgets/range_viewport.dart';
 
 class _RangeState {
   final RangeScenario scenario;
+  final List<RangeTarget> engagedTargets; // hit so far in this set of five
   final bool submitted;
 
-  const _RangeState({required this.scenario, this.submitted = false});
+  const _RangeState({
+    required this.scenario,
+    this.engagedTargets = const [],
+    this.submitted = false,
+  });
 
-  _RangeState copyWith({RangeScenario? scenario, bool? submitted}) =>
+  _RangeState copyWith({
+    RangeScenario? scenario,
+    List<RangeTarget>? engagedTargets,
+    bool? submitted,
+  }) =>
       _RangeState(
         scenario: scenario ?? this.scenario,
+        engagedTargets: engagedTargets ?? this.engagedTargets,
         submitted: submitted ?? this.submitted,
       );
+
+  bool get isRangeClear =>
+      engagedTargets.length + 1 >= scenario.allTargets.length;
 }
 
 class _RangeNotifier extends StateNotifier<_RangeState> {
@@ -35,8 +49,27 @@ class _RangeNotifier extends StateNotifier<_RangeState> {
 
   void submit() => state = state.copyWith(submitted: true);
   void reEngage() => state = state.copyWith(submitted: false);
-  void nextScenario() =>
+
+  /// Advance to next unengaged target in the current set. Call after a hit.
+  void nextTarget() {
+    final newEngaged = [...state.engagedTargets, state.scenario.activeTarget];
+    final remaining = state.scenario.allTargets
+        .where((t) => !newEngaged.contains(t))
+        .toList();
+
+    if (remaining.isEmpty) {
+      // All five done — fresh set.
       state = _RangeState(scenario: RangeScenarioGenerator.generate(profile, difficulty));
+      return;
+    }
+
+    final next = remaining[Random().nextInt(remaining.length)];
+    state = _RangeState(
+      scenario: RangeScenarioGenerator.generateForTarget(
+          next, state.scenario.allTargets, profile, difficulty),
+      engagedTargets: newEngaged,
+    );
+  }
 }
 
 final _rangeProvider = StateNotifierProvider.family<_RangeNotifier, _RangeState,
@@ -75,6 +108,7 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
 
   DifficultyMode _difficulty = DifficultyMode.basic;
   bool _isCorrect = false;
+  bool _rangeClear = false;
   bool _bannerShowing = false;
 
   @override
@@ -167,19 +201,22 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
         (_reticleOffset.dy - correctPos.dy).abs() <= tolerancePx);
   }
 
-  Future<void> _showBanner(bool isCorrect, _RangeNotifier notifier) async {
+  Future<void> _showBanner(bool isCorrect, _RangeNotifier notifier,
+      {bool rangeClear = false}) async {
     if (_bannerShowing) return;
     _bannerShowing = true;
-    setState(() => _isCorrect = isCorrect);
+    setState(() {
+      _isCorrect = isCorrect;
+      _rangeClear = rangeClear;
+    });
 
     if (isCorrect) {
-      // Reset reticle to center for next scenario
       _reticleInitialized = false;
-      notifier.nextScenario();
+      notifier.nextTarget(); // advances within the set, or resets when all five done
     }
 
     await _bannerController.forward(from: 0);
-    await Future.delayed(const Duration(milliseconds: 900));
+    await Future.delayed(Duration(milliseconds: rangeClear ? 1400 : 900));
     if (!mounted) return;
     await _bannerController.reverse();
     if (!mounted) return;
@@ -243,12 +280,20 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
                         children: [
                           RangeViewport(
                             scenario: scenario,
+                            engagedTargets: state.engagedTargets,
                             reticleOffset: _reticleOffset,
                             sceneOffset: _sceneOffset,
                             baseMilToPx: _baseMilToPx,
                             zoom: _zoom,
                             onScaleStart: _onScaleStart,
                             onScaleUpdate: (d) => _onScaleUpdate(d, vpSize),
+                          ),
+
+                          // Mini wind clock — top-left
+                          Positioned(
+                            left: 10,
+                            top: 10,
+                            child: _WindClock(scenario: scenario),
                           ),
 
                           // ORIENT hint — bottom-left
@@ -308,10 +353,11 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
                               ? null
                               : () {
                                   final isHit = _checkHit(scenario, vpSize);
+                                  final clear = isHit && state.isRangeClear;
                                   _player.play(AssetSource(
                                       isHit ? 'sounds/hit.wav' : 'sounds/miss.wav'));
                                   notifier.submit();
-                                  _showBanner(isHit, notifier);
+                                  _showBanner(isHit, notifier, rangeClear: clear);
                                 },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF4A7C59),
@@ -358,7 +404,9 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
                           ? const Color(0xFF4A7C59).withAlpha(230)
                           : const Color(0xFF8B3A3A).withAlpha(230),
                       child: Text(
-                        _isCorrect ? 'HIT — NEXT TARGET' : 'MISS — RE-ENGAGE!',
+                        _isCorrect
+                            ? (_rangeClear ? 'RANGE CLEAR' : 'HIT — NEXT TARGET')
+                            : 'MISS — RE-ENGAGE!',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.robotoMono(
                           color: Colors.white,
@@ -388,14 +436,8 @@ class _ScenarioInfoStrip extends StatelessWidget {
 
   const _ScenarioInfoStrip({required this.scenario});
 
-  String _clockLabel(double clock) {
-    if (clock == clock.truncate()) return '${clock.toInt()}:00';
-    return '${clock.truncate()}:30';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final windLabel = '${scenario.windSpeedMph.toInt()}mph @ ${_clockLabel(scenario.clockPosition)}';
     final holdDir = scenario.isRightHold ? 'R' : 'L';
     final windHoldLabel = scenario.windMil < 0.05
         ? 'NO WIND'
@@ -407,15 +449,14 @@ class _ScenarioInfoStrip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          // Wind
+          // Wind hold magnitude + direction (speed/clock shown on in-viewport clock)
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('WIND', style: _labelStyle),
+                Text('WIND HOLD', style: _labelStyle),
                 const SizedBox(height: 4),
-                Text(windLabel, style: _valueStyle),
                 Text(windHoldLabel,
                     style: _valueStyle.copyWith(color: const Color(0xFFE8C84A))),
               ],
@@ -600,4 +641,111 @@ class _Chip extends StatelessWidget {
       ),
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Mini wind clock overlay
+// ---------------------------------------------------------------------------
+
+class _WindClock extends StatelessWidget {
+  final RangeScenario scenario;
+  const _WindClock({required this.scenario});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 56,
+          height: 56,
+          child: CustomPaint(
+            painter: _WindClockPainter(
+              clockPosition: scenario.clockPosition,
+            ),
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          '${scenario.windSpeedMph.toInt()} MPH',
+          style: GoogleFonts.robotoMono(
+            color: Colors.white70,
+            fontSize: 9,
+            letterSpacing: 1,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WindClockPainter extends CustomPainter {
+  final double clockPosition;
+  const _WindClockPainter({required this.clockPosition});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r = size.width / 2 - 3;
+
+    // Background
+    canvas.drawCircle(
+      Offset(cx, cy), r + 3,
+      Paint()..color = const Color(0xBB0D1117),
+    );
+
+    // Ring
+    canvas.drawCircle(
+      Offset(cx, cy), r,
+      Paint()
+        ..color = const Color(0xFF4A7C59)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0,
+    );
+
+    // Cardinal ticks
+    final tickPaint = Paint()
+      ..color = const Color(0xFF4A7C59)
+      ..strokeWidth = 1.0;
+    for (final h in [12.0, 3.0, 6.0, 9.0]) {
+      final a = (h / 12.0) * 2 * pi - pi / 2;
+      canvas.drawLine(
+        Offset(cx + (r - 5) * cos(a), cy + (r - 5) * sin(a)),
+        Offset(cx + r * cos(a), cy + r * sin(a)),
+        tickPaint,
+      );
+    }
+
+    // Wind arrow: FROM clock position TOWARD center.
+    // Drawn from the ring edge inward, so it reads as "wind coming from here."
+    final windAngle = (clockPosition / 12.0) * 2 * pi - pi / 2;
+    final fromX = cx + r * 0.85 * cos(windAngle);
+    final fromY = cy + r * 0.85 * sin(windAngle);
+    // Arrow tip points toward center, stopping just past it
+    final toX = cx + r * 0.18 * cos(windAngle + pi);
+    final toY = cy + r * 0.18 * sin(windAngle + pi);
+
+    final arrowPaint = Paint()
+      ..color = Colors.white.withAlpha(220)
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(fromX, fromY), Offset(toX, toY), arrowPaint);
+
+    // Arrowhead
+    final dir = atan2(toY - fromY, toX - fromX);
+    const headLen = 5.0;
+    const headSpread = 0.5;
+    for (final side in [-1, 1]) {
+      canvas.drawLine(
+        Offset(toX, toY),
+        Offset(toX - headLen * cos(dir - side * headSpread),
+               toY - headLen * sin(dir - side * headSpread)),
+        arrowPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WindClockPainter old) => old.clockPosition != clockPosition;
 }

@@ -4,6 +4,7 @@ import '../models/range_target.dart';
 
 class RangeViewport extends StatelessWidget {
   final RangeScenario scenario;
+  final List<RangeTarget> engagedTargets;
   final Offset reticleOffset;
   final Offset sceneOffset;
   final double baseMilToPx;
@@ -14,6 +15,7 @@ class RangeViewport extends StatelessWidget {
   const RangeViewport({
     super.key,
     required this.scenario,
+    required this.engagedTargets,
     required this.reticleOffset,
     required this.sceneOffset,
     required this.baseMilToPx,
@@ -31,6 +33,7 @@ class RangeViewport extends StatelessWidget {
         child: CustomPaint(
           painter: _RangeViewportPainter(
             scenario: scenario,
+            engagedTargets: engagedTargets,
             reticleOffset: reticleOffset,
             sceneOffset: sceneOffset,
             baseMilToPx: baseMilToPx,
@@ -45,6 +48,7 @@ class RangeViewport extends StatelessWidget {
 
 class _RangeViewportPainter extends CustomPainter {
   final RangeScenario scenario;
+  final List<RangeTarget> engagedTargets;
   final Offset reticleOffset;
   final Offset sceneOffset;
   final double baseMilToPx;
@@ -52,6 +56,7 @@ class _RangeViewportPainter extends CustomPainter {
 
   _RangeViewportPainter({
     required this.scenario,
+    required this.engagedTargets,
     required this.reticleOffset,
     required this.sceneOffset,
     required this.baseMilToPx,
@@ -71,7 +76,9 @@ class _RangeViewportPainter extends CustomPainter {
     canvas.translate(sceneOffset.dx / zoom, sceneOffset.dy / zoom);
     _drawLandscape(canvas, size);
     for (final target in scenario.allTargets) {
-      _drawTarget(canvas, size, target, target == scenario.activeTarget);
+      _drawTarget(canvas, size, target,
+          target == scenario.activeTarget,
+          engagedTargets.contains(target));
     }
     canvas.restore();
 
@@ -150,7 +157,7 @@ class _RangeViewportPainter extends CustomPainter {
     );
   }
 
-  void _drawTarget(Canvas canvas, Size size, RangeTarget target, bool isActive) {
+  void _drawTarget(Canvas canvas, Size size, RangeTarget target, bool isActive, bool isEngaged) {
     final px = target.anchor.dx * size.width;
     final py = target.anchor.dy * size.height;
 
@@ -158,10 +165,19 @@ class _RangeViewportPainter extends CustomPainter {
     final double h = baseH * (300 / target.distanceMeters);
     final double w = h * 0.55;
 
-    final Color fillColor = isActive ? const Color(0xFFD4A017) : const Color(0xFF5A5A4A);
+    // Engaged (hit) targets are rendered very dim — visible but clearly neutralized.
+    final Color fillColor = isEngaged
+        ? const Color(0xFF1A1A14)
+        : isActive
+            ? const Color(0xFFD4A017)
+            : const Color(0xFF5A5A4A);
     final Paint fill = Paint()..color = fillColor;
     final Paint stroke = Paint()
-      ..color = isActive ? const Color(0xFFFFD700) : const Color(0xFF3A3A2A)
+      ..color = isEngaged
+          ? const Color(0xFF2A2A20)
+          : isActive
+              ? const Color(0xFFFFD700)
+              : const Color(0xFF3A3A2A)
       ..style = PaintingStyle.stroke
       ..strokeWidth = isActive ? 1.5 : 0.8;
 
@@ -176,17 +192,20 @@ class _RangeViewportPainter extends CustomPainter {
     canvas.drawCircle(Offset(px, py - h / 2 - headR * 0.6), headR, fill);
     canvas.drawCircle(Offset(px, py - h / 2 - headR * 0.6), headR, stroke);
 
-    final labelStyle = TextStyle(
-      color: isActive ? const Color(0xFFFFD700) : const Color(0xFF666655),
-      fontSize: isActive ? 11.0 : 9.0,
-      fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-      fontFamily: 'monospace',
-    );
-    final tp = TextPainter(
-      text: TextSpan(text: '${target.distanceMeters}M', style: labelStyle),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, Offset(px - tp.width / 2, py + h / 2 + 4));
+    // No label on engaged targets — just draw them dark.
+    if (!isEngaged) {
+      final labelStyle = TextStyle(
+        color: isActive ? const Color(0xFFFFD700) : const Color(0xFF666655),
+        fontSize: isActive ? 11.0 : 9.0,
+        fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+        fontFamily: 'monospace',
+      );
+      final tp = TextPainter(
+        text: TextSpan(text: '${target.distanceMeters}M', style: labelStyle),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(px - tp.width / 2, py + h / 2 + 4));
+    }
   }
 
   void _drawReticle(Canvas canvas, Size size) {
@@ -427,6 +446,7 @@ class _RangeViewportPainter extends CustomPainter {
       old.reticleOffset != reticleOffset ||
       old.sceneOffset != sceneOffset ||
       old.scenario != scenario ||
+      old.engagedTargets != engagedTargets ||
       old.baseMilToPx != baseMilToPx ||
       old.zoom != zoom;
 }

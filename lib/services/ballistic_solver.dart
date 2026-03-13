@@ -27,9 +27,9 @@ class BallisticSolver {
   }
 
   /// True if the correct hold is to the RIGHT of the target.
-  /// Clock 7:30–10:30: wind from right → bullet pushed left → hold RIGHT.
-  /// Clock 1:30–4:30: wind from left → bullet pushed right → hold LEFT.
+  /// Clock 1:30–4:30: wind FROM the right → bullet pushed LEFT → hold RIGHT.
+  /// Clock 7:30–10:30: wind FROM the left → bullet pushed RIGHT → hold LEFT.
   static bool isRightHold(double clockPosition) {
-    return clockPosition >= 7.0 && clockPosition <= 11.0;
+    return clockPosition >= 1.0 && clockPosition <= 5.0;
   }
 }
