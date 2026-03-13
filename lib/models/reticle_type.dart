@@ -29,4 +29,10 @@ extension ReticleTypeX on ReticleType {
     ReticleType.mil => value,
     ReticleType.moa => value / _milsPerMoa,
   };
+
+  /// Answer tolerance (angular accuracy matching)
+  double get tolerance => switch (this) {
+    ReticleType.mil => 0.1,      // 0.1 MIL
+    ReticleType.moa => 0.35,     // ~0.1 MIL equivalent (0.344 MOA)
+  };
 }

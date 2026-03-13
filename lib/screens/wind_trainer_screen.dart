@@ -26,10 +26,11 @@ class _TrainerState {
   });
 
   bool get isCorrect {
-    final step = reticleType.drumStep;
     final correctInUnit = reticleType.fromMil(scenario.correctMil);
+    final step = reticleType.drumStep;
     final steppedCorrect = (correctInUnit / step).round() * step;
-    final valueCorrect = (userValue - steppedCorrect).abs() <= step;
+    final tolerance = reticleType.tolerance;
+    final valueCorrect = (userValue - steppedCorrect).abs() <= tolerance;
     final dirCorrect = scenario.correctMil < 0.05 || userIsRight == scenario.isRightWind;
     return valueCorrect && dirCorrect;
   }

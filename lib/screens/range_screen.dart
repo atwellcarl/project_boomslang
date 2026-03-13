@@ -29,19 +29,20 @@ class _RangeState {
 class _RangeNotifier extends StateNotifier<_RangeState> {
   final BallisticProfile profile;
   final DifficultyMode difficulty;
+  final ReticleType reticleType;
 
-  _RangeNotifier(this.profile, this.difficulty)
-      : super(_RangeState(scenario: RangeScenarioGenerator.generate(profile, difficulty)));
+  _RangeNotifier(this.profile, this.difficulty, this.reticleType)
+      : super(_RangeState(scenario: RangeScenarioGenerator.generate(profile, difficulty, reticleType: reticleType)));
 
   void submit() => state = state.copyWith(submitted: true);
   void reEngage() => state = state.copyWith(submitted: false);
   void nextScenario() =>
-      state = _RangeState(scenario: RangeScenarioGenerator.generate(profile, difficulty));
+      state = _RangeState(scenario: RangeScenarioGenerator.generate(profile, difficulty, reticleType: reticleType));
 }
 
 final _rangeProvider = StateNotifierProvider.family<_RangeNotifier, _RangeState,
-    (BallisticProfile, DifficultyMode)>(
-  (ref, key) => _RangeNotifier(key.$1, key.$2),
+    (BallisticProfile, DifficultyMode, ReticleType)>(
+  (ref, key) => _RangeNotifier(key.$1, key.$2, key.$3),
 );
 
 // ---------------------------------------------------------------------------
@@ -191,7 +192,7 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final key = (widget.profile, _difficulty);
+    final key = (widget.profile, _difficulty, widget.reticleType);
     final notifier = ref.read(_rangeProvider(key).notifier);
     final state = ref.watch(_rangeProvider(key));
     final scenario = state.scenario;
