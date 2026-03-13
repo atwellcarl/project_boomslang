@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/milling_scenario.dart';
+import '../models/reticle_type.dart';
 import '../services/milling_scenario_generator.dart';
 import '../widgets/milling_viewport.dart';
 
@@ -44,7 +45,9 @@ final _millingProvider =
 // ---------------------------------------------------------------------------
 
 class MillingScreen extends ConsumerStatefulWidget {
-  const MillingScreen({super.key});
+  final ReticleType reticleType;
+
+  const MillingScreen({super.key, required this.reticleType});
 
   @override
   ConsumerState<MillingScreen> createState() => _MillingScreenState();
@@ -224,6 +227,7 @@ class _MillingScreenState extends ConsumerState<MillingScreen>
                             sceneOffset: _sceneOffset,
                             baseMilToPx: _baseMilToPx,
                             zoom: _zoom,
+                            reticleType: widget.reticleType,
                             onScaleStart: _onScaleStart,
                             onScaleUpdate: (d) => _onScaleUpdate(d, vpSize),
                           ),

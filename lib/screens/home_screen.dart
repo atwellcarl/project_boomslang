@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/ballistic_profiles.dart';
 import '../models/ballistic_profile.dart';
+import '../models/reticle_type.dart';
 import 'wind_trainer_screen.dart';
 import 'range_screen.dart';
 import 'milling_screen.dart';
@@ -15,8 +16,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedProfileIndex = 0;
+  int _selectedReticleIndex = 0;
 
   BallisticProfile get _selectedProfile => kBallisticProfiles[_selectedProfileIndex];
+  ReticleType get _selectedReticle => ReticleType.values[_selectedReticleIndex];
 
   @override
   Widget build(BuildContext context) {
@@ -139,6 +142,138 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 40),
 
+              // Reticle selector label
+              Text(
+                'SELECT RETICLE',
+                style: GoogleFonts.robotoMono(
+                  color: const Color(0xFF8BA888),
+                  fontSize: 11,
+                  letterSpacing: 3,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Reticle cards
+              Row(
+                children: [
+                  // MIL card
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedReticleIndex = 0),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 16, horizontal: 14),
+                        decoration: BoxDecoration(
+                          color: _selectedReticleIndex == 0
+                              ? const Color(0xFF1A2E1F)
+                              : const Color(0xFF151B22),
+                          border: Border.all(
+                            color: _selectedReticleIndex == 0
+                                ? const Color(0xFF4A7C59)
+                                : const Color(0xFF2A3A2A),
+                            width: 1.5,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              _selectedReticleIndex == 0
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_unchecked,
+                              color: _selectedReticleIndex == 0
+                                  ? const Color(0xFF4A7C59)
+                                  : Colors.white24,
+                              size: 18,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'MIL',
+                              style: GoogleFonts.robotoMono(
+                                color: _selectedReticleIndex == 0
+                                    ? Colors.white
+                                    : Colors.white60,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '0.1 step',
+                              style: GoogleFonts.robotoMono(
+                                color: _selectedReticleIndex == 0
+                                    ? const Color(0xFF8BA888)
+                                    : Colors.white24,
+                                fontSize: 9,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // MOA card
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedReticleIndex = 1),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 16, horizontal: 14),
+                        decoration: BoxDecoration(
+                          color: _selectedReticleIndex == 1
+                              ? const Color(0xFF1A2E1F)
+                              : const Color(0xFF151B22),
+                          border: Border.all(
+                            color: _selectedReticleIndex == 1
+                                ? const Color(0xFF4A7C59)
+                                : const Color(0xFF2A3A2A),
+                            width: 1.5,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              _selectedReticleIndex == 1
+                                  ? Icons.radio_button_checked
+                                  : Icons.radio_button_unchecked,
+                              color: _selectedReticleIndex == 1
+                                  ? const Color(0xFF4A7C59)
+                                  : Colors.white24,
+                              size: 18,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'MOA',
+                              style: GoogleFonts.robotoMono(
+                                color: _selectedReticleIndex == 1
+                                    ? Colors.white
+                                    : Colors.white60,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '0.25 step',
+                              style: GoogleFonts.robotoMono(
+                                color: _selectedReticleIndex == 1
+                                    ? const Color(0xFF8BA888)
+                                    : Colors.white24,
+                                fontSize: 9,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 40),
+
               // Training tools label
               Text(
                 'TRAINING TOOLS',
@@ -153,12 +288,12 @@ class _HomeScreenState extends State<HomeScreen> {
               // Wind Call
               _ToolCard(
                 title: 'WIND CALL',
-                subtitle: 'Read wind — enter MRAD holdover',
+                subtitle: 'Read wind — enter ${_selectedReticle.label} holdover',
                 icon: Icons.air,
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => WindTrainerScreen(profile: _selectedProfile),
+                    builder: (_) => WindTrainerScreen(profile: _selectedProfile, reticleType: _selectedReticle),
                   ),
                 ),
               ),
@@ -173,7 +308,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const MillingScreen(),
+                    builder: (_) => MillingScreen(reticleType: _selectedReticle),
                   ),
                 ),
               ),
@@ -188,7 +323,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => RangeScreen(profile: _selectedProfile),
+                    builder: (_) => RangeScreen(profile: _selectedProfile, reticleType: _selectedReticle),
                   ),
                 ),
               ),

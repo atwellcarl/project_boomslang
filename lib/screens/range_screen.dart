@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/ballistic_profile.dart';
 import '../models/difficulty_mode.dart';
 import '../models/range_scenario.dart';
+import '../models/reticle_type.dart';
 import '../services/range_scenario_generator.dart';
 import '../widgets/range_viewport.dart';
 
@@ -50,8 +50,9 @@ final _rangeProvider = StateNotifierProvider.family<_RangeNotifier, _RangeState,
 
 class RangeScreen extends ConsumerStatefulWidget {
   final BallisticProfile profile;
+  final ReticleType reticleType;
 
-  const RangeScreen({super.key, required this.profile});
+  const RangeScreen({super.key, required this.profile, required this.reticleType});
 
   @override
   ConsumerState<RangeScreen> createState() => _RangeScreenState();
@@ -247,6 +248,7 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
                             sceneOffset: _sceneOffset,
                             baseMilToPx: _baseMilToPx,
                             zoom: _zoom,
+                            reticleType: widget.reticleType,
                             onScaleStart: _onScaleStart,
                             onScaleUpdate: (d) => _onScaleUpdate(d, vpSize),
                           ),
@@ -294,7 +296,7 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
                     ),
 
                     // ---- Scenario info strip ----
-                    _ScenarioInfoStrip(scenario: scenario),
+                    _ScenarioInfoStrip(scenario: scenario, reticleType: widget.reticleType),
 
                     const SizedBox(height: 16),
 
@@ -385,8 +387,9 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
 
 class _ScenarioInfoStrip extends StatelessWidget {
   final RangeScenario scenario;
+  final ReticleType reticleType;
 
-  const _ScenarioInfoStrip({required this.scenario});
+  const _ScenarioInfoStrip({required this.scenario, required this.reticleType});
 
   String _clockLabel(double clock) {
     if (clock == clock.truncate()) return '${clock.toInt()}:00';
@@ -397,9 +400,12 @@ class _ScenarioInfoStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final windLabel = '${scenario.windSpeedMph.toInt()}mph @ ${_clockLabel(scenario.clockPosition)}';
     final holdDir = scenario.isRightHold ? 'R' : 'L';
+    final windDisplay = reticleType.fromMil(scenario.windMil);
+    final elevDisplay = reticleType.fromMil(scenario.elevationMil);
+    final unit = reticleType.label;
     final windHoldLabel = scenario.windMil < 0.05
         ? 'NO WIND'
-        : '${scenario.windMil.toStringAsFixed(1)} MIL $holdDir';
+        : '${windDisplay.toStringAsFixed(1)} $unit $holdDir';
 
     return Container(
       height: 80,
@@ -451,7 +457,7 @@ class _ScenarioInfoStrip extends StatelessWidget {
                 Text('ELEVATION', style: _labelStyle),
                 const SizedBox(height: 4),
                 Text(
-                  '${scenario.elevationMil.toStringAsFixed(1)} MIL',
+                  '${elevDisplay.toStringAsFixed(1)} $unit',
                   style: _valueStyle.copyWith(color: const Color(0xFF8BA888)),
                 ),
                 Text('HOLD UP', style: _labelStyle),

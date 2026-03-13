@@ -5,40 +5,48 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/ballistic_profile.dart';
 import '../models/difficulty_mode.dart';
 import '../models/wind_scenario.dart';
+import '../models/reticle_type.dart';
 import '../services/scenario_generator.dart';
 import '../widgets/wind_dial.dart';
 import '../widgets/answer_input.dart';
 
 class _TrainerState {
   final WindScenario scenario;
-  final double userMil;
+  final double userValue;
   final bool userIsRight;
   final bool submitted;
+  final ReticleType reticleType;
 
   const _TrainerState({
     required this.scenario,
-    this.userMil = 0.0,
+    required this.reticleType,
+    this.userValue = 0.0,
     this.userIsRight = true,
     this.submitted = false,
   });
 
   bool get isCorrect {
-    final milCorrect = (userMil - scenario.correctMil).abs() <= 0.1;
+    final step = reticleType.drumStep;
+    final correctInUnit = reticleType.fromMil(scenario.correctMil);
+    final steppedCorrect = (correctInUnit / step).round() * step;
+    final valueCorrect = (userValue - steppedCorrect).abs() <= step;
     final dirCorrect = scenario.correctMil < 0.05 || userIsRight == scenario.isRightWind;
-    return milCorrect && dirCorrect;
+    return valueCorrect && dirCorrect;
   }
 
   _TrainerState copyWith({
     WindScenario? scenario,
-    double? userMil,
+    double? userValue,
     bool? userIsRight,
     bool? submitted,
+    ReticleType? reticleType,
   }) {
     return _TrainerState(
       scenario: scenario ?? this.scenario,
-      userMil: userMil ?? this.userMil,
+      userValue: userValue ?? this.userValue,
       userIsRight: userIsRight ?? this.userIsRight,
       submitted: submitted ?? this.submitted,
+      reticleType: reticleType ?? this.reticleType,
     );
   }
 }
@@ -46,25 +54,33 @@ class _TrainerState {
 class _TrainerNotifier extends StateNotifier<_TrainerState> {
   final BallisticProfile profile;
   final DifficultyMode difficulty;
+  final ReticleType reticleType;
 
-  _TrainerNotifier(this.profile, this.difficulty)
-      : super(_TrainerState(scenario: ScenarioGenerator.generate(profile, difficulty)));
+  _TrainerNotifier(this.profile, this.difficulty, this.reticleType)
+      : super(_TrainerState(
+          scenario: ScenarioGenerator.generate(profile, difficulty),
+          reticleType: reticleType,
+        ));
 
-  void setMil(double value) => state = state.copyWith(userMil: value);
+  void setValue(double value) => state = state.copyWith(userValue: value);
   void setDirection(bool isRight) => state = state.copyWith(userIsRight: isRight);
   void submit() => state = state.copyWith(submitted: true);
   void reEngage() => state = state.copyWith(submitted: false);
-  void nextScenario() => state = _TrainerState(scenario: ScenarioGenerator.generate(profile, difficulty));
+  void nextScenario() => state = _TrainerState(
+    scenario: ScenarioGenerator.generate(profile, difficulty),
+    reticleType: reticleType,
+  );
 }
 
-final _trainerProvider = StateNotifierProvider.family<_TrainerNotifier, _TrainerState, (BallisticProfile, DifficultyMode)>(
-  (ref, key) => _TrainerNotifier(key.$1, key.$2),
+final _trainerProvider = StateNotifierProvider.family<_TrainerNotifier, _TrainerState, (BallisticProfile, DifficultyMode, ReticleType)>(
+  (ref, key) => _TrainerNotifier(key.$1, key.$2, key.$3),
 );
 
 class WindTrainerScreen extends ConsumerStatefulWidget {
   final BallisticProfile profile;
+  final ReticleType reticleType;
 
-  const WindTrainerScreen({super.key, required this.profile});
+  const WindTrainerScreen({super.key, required this.profile, required this.reticleType});
 
   @override
   ConsumerState<WindTrainerScreen> createState() => _WindTrainerScreenState();
@@ -115,7 +131,7 @@ class _WindTrainerScreenState extends ConsumerState<WindTrainerScreen>
 
   @override
   Widget build(BuildContext context) {
-    final key = (widget.profile, _difficulty);
+    final key = (widget.profile, _difficulty, widget.reticleType);
     final notifier = ref.read(_trainerProvider(key).notifier);
 
     ref.listen(_trainerProvider(key), (prev, next) {
@@ -190,9 +206,10 @@ class _WindTrainerScreenState extends ConsumerState<WindTrainerScreen>
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: AnswerInput(
-                    milValue: state.userMil,
+                    value: state.userValue,
                     isRight: state.userIsRight,
-                    onMilChanged: notifier.setMil,
+                    reticleType: widget.reticleType,
+                    onValueChanged: notifier.setValue,
                     onDirectionChanged: notifier.setDirection,
                     onSubmit: notifier.submit,
                     submitted: state.submitted,

@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../models/reticle_type.dart';
 
 class AnswerInput extends StatefulWidget {
-  final double milValue;
+  final double value;
   final bool isRight;
-  final ValueChanged<double> onMilChanged;
+  final ReticleType reticleType;
+  final ValueChanged<double> onValueChanged;
   final ValueChanged<bool> onDirectionChanged;
   final VoidCallback onSubmit;
   final bool submitted;
 
   const AnswerInput({
     super.key,
-    required this.milValue,
+    required this.value,
     required this.isRight,
-    required this.onMilChanged,
+    required this.reticleType,
+    required this.onValueChanged,
     required this.onDirectionChanged,
     required this.onSubmit,
     required this.submitted,
@@ -24,31 +27,43 @@ class AnswerInput extends StatefulWidget {
 }
 
 class _AnswerInputState extends State<AnswerInput> {
-  late FixedExtentScrollController _milController;
-  bool _milScrolling = false;
+  late FixedExtentScrollController _controller;
+  bool _scrolling = false;
 
-  static const int _itemCount = 51; // 0.0 to 5.0 in 0.1 steps
+  late int _itemCount;
 
-  int _milToIndex(double mil) => (mil / 0.1).round().clamp(0, _itemCount - 1);
-  double _indexToMil(int index) => index * 0.1;
+  int _toIndex(double value) {
+    final step = widget.reticleType.drumStep;
+    return (value / step).round().clamp(0, _itemCount - 1);
+  }
+
+  double _fromIndex(int index) {
+    return index * widget.reticleType.drumStep;
+  }
 
   @override
   void initState() {
     super.initState();
-    _milController = FixedExtentScrollController(
-      initialItem: _milToIndex(widget.milValue),
+    _itemCount = (widget.reticleType.drumMax / widget.reticleType.drumStep).round() + 1;
+    _controller = FixedExtentScrollController(
+      initialItem: _toIndex(widget.value),
     );
   }
 
   @override
   void didUpdateWidget(AnswerInput oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Update item count if reticle type changes
+    final newItemCount = (widget.reticleType.drumMax / widget.reticleType.drumStep).round() + 1;
+    if (newItemCount != _itemCount) {
+      _itemCount = newItemCount;
+    }
     // Snap back to 0 when a new scenario starts
-    if (widget.milValue != oldWidget.milValue) {
-      final targetIndex = _milToIndex(widget.milValue);
-      if (_milController.hasClients &&
-          _milController.selectedItem != targetIndex) {
-        _milController.animateToItem(
+    if (widget.value != oldWidget.value) {
+      final targetIndex = _toIndex(widget.value);
+      if (_controller.hasClients &&
+          _controller.selectedItem != targetIndex) {
+        _controller.animateToItem(
           targetIndex,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
@@ -59,7 +74,7 @@ class _AnswerInputState extends State<AnswerInput> {
 
   @override
   void dispose() {
-    _milController.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -67,7 +82,7 @@ class _AnswerInputState extends State<AnswerInput> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // MIL drum dial
+        // Value drum dial
         Column(
           children: [
             SizedBox(
@@ -88,15 +103,15 @@ class _AnswerInputState extends State<AnswerInput> {
                   // Drum wheel
                   NotificationListener<ScrollNotification>(
                     onNotification: (n) {
-                      if (n is ScrollStartNotification && !_milScrolling) {
-                        setState(() => _milScrolling = true);
-                      } else if (n is ScrollEndNotification && _milScrolling) {
-                        setState(() => _milScrolling = false);
+                      if (n is ScrollStartNotification && !_scrolling) {
+                        setState(() => _scrolling = true);
+                      } else if (n is ScrollEndNotification && _scrolling) {
+                        setState(() => _scrolling = false);
                       }
                       return false;
                     },
                   child: ListWheelScrollView.useDelegate(
-                    controller: _milController,
+                    controller: _controller,
                     physics: widget.submitted
                         ? const NeverScrollableScrollPhysics()
                         : const FixedExtentScrollPhysics(),
@@ -104,17 +119,17 @@ class _AnswerInputState extends State<AnswerInput> {
                     perspective: 0.003,
                     diameterRatio: 2.5,
                     onSelectedItemChanged: (index) {
-                      widget.onMilChanged(_indexToMil(index));
+                      widget.onValueChanged(_fromIndex(index));
                     },
                     childDelegate: ListWheelChildBuilderDelegate(
                       childCount: _itemCount,
                       builder: (context, index) {
-                        final value = _indexToMil(index);
-                        final isSelected =
-                            (_milToIndex(widget.milValue) == index);
+                        final value = _fromIndex(index);
+                        final isSelected = (_toIndex(widget.value) == index);
+                        final decimalPlaces = widget.reticleType == ReticleType.moa ? 2 : 1;
                         return Center(
                           child: Text(
-                            value.toStringAsFixed(1),
+                            value.toStringAsFixed(decimalPlaces),
                             style: GoogleFonts.robotoMono(
                               color: isSelected
                                   ? Colors.white
@@ -134,7 +149,7 @@ class _AnswerInputState extends State<AnswerInput> {
             ),
             const SizedBox(height: 4),
             Text(
-              'MIL',
+              widget.reticleType.label,
               style: GoogleFonts.robotoMono(
                 color: const Color(0xFF4A7C59),
                 fontSize: 14,
@@ -170,7 +185,7 @@ class _AnswerInputState extends State<AnswerInput> {
         SizedBox(
           width: 200,
           child: ElevatedButton(
-            onPressed: widget.submitted || _milScrolling ? null : widget.onSubmit,
+            onPressed: widget.submitted || _scrolling ? null : widget.onSubmit,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF4A7C59),
               disabledBackgroundColor: const Color(0xFF2A3A2A),
