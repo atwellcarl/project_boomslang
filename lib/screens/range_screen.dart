@@ -163,7 +163,9 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
     final double elevOffsetPx = -scenario.elevationMil * milToPxScreen;
 
     final correctPos = Offset(targetScreen.dx + windOffsetPx, targetScreen.dy + elevOffsetPx);
-    final tolerancePx = 0.4 * milToPxScreen;
+    // More forgiving tolerance for Range Engagement
+    final toleranceMil = widget.reticleType == ReticleType.mil ? 0.6 : 1.5; // ~0.44 MIL equivalent
+    final tolerancePx = toleranceMil * milToPxScreen;
 
     return ((_reticleOffset.dx - correctPos.dx).abs() <= tolerancePx &&
         (_reticleOffset.dy - correctPos.dy).abs() <= tolerancePx);
