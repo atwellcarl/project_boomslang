@@ -24,7 +24,7 @@ class _TrainerState {
 
   bool get isCorrect {
     final milCorrect = (userMil - scenario.correctMil).abs() <= 0.1;
-    final dirCorrect = scenario.correctMil < 0.05 || userIsRight == scenario.isRightWind;
+    final dirCorrect = scenario.correctMil < 0.05 || userIsRight != scenario.isRightWind;
     return milCorrect && dirCorrect;
   }
 
