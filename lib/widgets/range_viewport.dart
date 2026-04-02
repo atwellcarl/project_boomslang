@@ -1,8 +1,10 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/range_scenario.dart';
 import '../models/range_target.dart';
 
-class RangeViewport extends StatelessWidget {
+class RangeViewport extends StatefulWidget {
   final RangeScenario scenario;
   final List<RangeTarget> engagedTargets;
   final Offset reticleOffset;
@@ -25,19 +27,40 @@ class RangeViewport extends StatelessWidget {
   });
 
   @override
+  State<RangeViewport> createState() => _RangeViewportState();
+}
+
+class _RangeViewportState extends State<RangeViewport> {
+  ui.Image? _bgImage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImage();
+  }
+
+  Future<void> _loadImage() async {
+    final data = await rootBundle.load('assets/images/range_landscape.jpg');
+    final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+    final frame = await codec.getNextFrame();
+    if (mounted) setState(() => _bgImage = frame.image);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onScaleStart: onScaleStart,
-      onScaleUpdate: onScaleUpdate,
+      onScaleStart: widget.onScaleStart,
+      onScaleUpdate: widget.onScaleUpdate,
       child: ClipRect(
         child: CustomPaint(
           painter: _RangeViewportPainter(
-            scenario: scenario,
-            engagedTargets: engagedTargets,
-            reticleOffset: reticleOffset,
-            sceneOffset: sceneOffset,
-            baseMilToPx: baseMilToPx,
-            zoom: zoom,
+            scenario: widget.scenario,
+            engagedTargets: widget.engagedTargets,
+            reticleOffset: widget.reticleOffset,
+            sceneOffset: widget.sceneOffset,
+            baseMilToPx: widget.baseMilToPx,
+            zoom: widget.zoom,
+            bgImage: _bgImage,
           ),
           child: const SizedBox.expand(),
         ),
@@ -53,6 +76,7 @@ class _RangeViewportPainter extends CustomPainter {
   final Offset sceneOffset;
   final double baseMilToPx;
   final double zoom;
+  final ui.Image? bgImage;
 
   _RangeViewportPainter({
     required this.scenario,
@@ -61,6 +85,7 @@ class _RangeViewportPainter extends CustomPainter {
     required this.sceneOffset,
     required this.baseMilToPx,
     required this.zoom,
+    required this.bgImage,
   });
 
   @override
@@ -94,66 +119,33 @@ class _RangeViewportPainter extends CustomPainter {
   }
 
   void _drawLandscape(Canvas canvas, Size size) {
-    // Extend all drawing well beyond the viewport so that panning and zooming
-    // never reveals a hard edge. The ClipRect in RangeViewport handles trimming.
+    // Fill extended world with dark background (visible when panning past image edge)
     final double xL = -size.width  * 4;
     final double xR =  size.width  * 5;
     final double yT = -size.height * 4;
     final double yB =  size.height * 5;
-
-    // Sky gradient — covers the entire extended world rect
-    final skyRect = Rect.fromLTRB(xL, yT, xR, yB);
-    final skyGrad = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      stops: const [0.0, 0.55, 0.68, 1.0],
-      colors: const [
-        Color(0xFF0D1A26),
-        Color(0xFF1A2E3A),
-        Color(0xFF1A2A18),
-        Color(0xFF111A0D),
-      ],
-    );
-    canvas.drawRect(skyRect, Paint()..shader = skyGrad.createShader(skyRect));
-
-    // Ridge — flat at each edge, curved profile across the original viewport width
-    final ridgePaint = Paint()..color = const Color(0xFF1A2E1A);
-    final ridgePath = Path();
-    ridgePath.moveTo(xL, size.height * 0.50);
-    ridgePath.lineTo(0, size.height * 0.50);
-    ridgePath.cubicTo(size.width * 0.15, size.height * 0.44,
-                      size.width * 0.35, size.height * 0.48,
-                      size.width * 0.50, size.height * 0.46);
-    ridgePath.cubicTo(size.width * 0.65, size.height * 0.44,
-                      size.width * 0.80, size.height * 0.50,
-                      size.width,        size.height * 0.48);
-    ridgePath.lineTo(xR, size.height * 0.48);
-    ridgePath.lineTo(xR, yB);
-    ridgePath.lineTo(xL, yB);
-    ridgePath.close();
-    canvas.drawPath(ridgePath, ridgePaint);
-
-    // Berm — same treatment
-    final bermPaint = Paint()..color = const Color(0xFF152010);
-    final bermPath = Path();
-    bermPath.moveTo(xL, size.height * 0.65);
-    bermPath.lineTo(0, size.height * 0.65);
-    bermPath.cubicTo(size.width * 0.20, size.height * 0.60,
-                     size.width * 0.45, size.height * 0.67,
-                     size.width * 0.60, size.height * 0.63);
-    bermPath.cubicTo(size.width * 0.75, size.height * 0.59,
-                     size.width * 0.88, size.height * 0.65,
-                     size.width,        size.height * 0.63);
-    bermPath.lineTo(xR, size.height * 0.63);
-    bermPath.lineTo(xR, yB);
-    bermPath.lineTo(xL, yB);
-    bermPath.close();
-    canvas.drawPath(bermPath, bermPaint);
-
-    // Dark ground strip
     canvas.drawRect(
-      Rect.fromLTRB(xL, size.height * 0.78, xR, yB),
-      Paint()..color = const Color(0xFF0F1A0A),
+      Rect.fromLTRB(xL, yT, xR, yB),
+      Paint()..color = const Color(0xFF0D1117),
+    );
+
+    if (bgImage == null) return;
+
+    final double imgW = bgImage!.width.toDouble();
+    final double imgH = bgImage!.height.toDouble();
+
+    // Scale image to cover full viewport height, maintaining aspect ratio.
+    // A landscape image on a portrait screen will be wider than the viewport —
+    // the center portion shows by default, and panning reveals the rest.
+    final double scale = size.height / imgH;
+    final double scaledW = imgW * scale;
+    final double offsetX = (size.width - scaledW) / 2;
+
+    canvas.drawImageRect(
+      bgImage!,
+      Rect.fromLTWH(0, 0, imgW, imgH),
+      Rect.fromLTWH(offsetX, 0, scaledW, size.height),
+      Paint(),
     );
   }
 
@@ -448,5 +440,6 @@ class _RangeViewportPainter extends CustomPainter {
       old.scenario != scenario ||
       old.engagedTargets != engagedTargets ||
       old.baseMilToPx != baseMilToPx ||
-      old.zoom != zoom;
+      old.zoom != zoom ||
+      old.bgImage != bgImage;
 }

@@ -151,9 +151,14 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
         // Two fingers anywhere = pinch-to-zoom. Min 1.0 keeps landscape full-screen.
         _zoom = (_zoomAtGestureStart * details.scale).clamp(1.0, 6.0);
       } else if (_isPanningScene) {
+        // Clamp scene pan so the background image never scrolls outside the
+        // viewport. Image is 2560×1440 (16:9) scaled to cover viewport height.
+        final double scaledImgW = (2560 / 1440) * viewportSize.height;
+        final double maxDx = ((scaledImgW - viewportSize.width) / 2) * _zoom;
+        final double maxDy = viewportSize.height * (_zoom - 1) / 2;
         _sceneOffset = Offset(
-          _sceneOffset.dx + details.focalPointDelta.dx,
-          _sceneOffset.dy + details.focalPointDelta.dy,
+          (_sceneOffset.dx + details.focalPointDelta.dx).clamp(-maxDx, maxDx),
+          (_sceneOffset.dy + details.focalPointDelta.dy).clamp(-maxDy, maxDy),
         );
       } else {
         // Allow reticle to travel well off-screen so large elevation/wind holds
