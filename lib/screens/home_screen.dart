@@ -53,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               // Load selector label
               Text(
-                'SELECT LOAD',
+                'SELECT GUN',
                 style: GoogleFonts.robotoMono(
                   color: const Color(0xFF8BA888),
                   fontSize: 11,
@@ -62,79 +62,59 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Profile cards — independent scroll so more loads can be added
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 110),
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: kBallisticProfiles.asMap().entries.map((entry) {
-                      final i = entry.key;
-                      final profile = entry.value;
-                      final selected = i == _selectedProfileIndex;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: GestureDetector(
-                          onTap: () => setState(() => _selectedProfileIndex = i),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 16, horizontal: 18),
-                            decoration: BoxDecoration(
+              // Profile cards — side by side, static
+              Row(
+                children: kBallisticProfiles.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final profile = entry.value;
+                  final selected = i == _selectedProfileIndex;
+                  return Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(right: i < kBallisticProfiles.length - 1 ? 10 : 0),
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedProfileIndex = i),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? const Color(0xFF1A2E1F)
+                                : const Color(0xFF151B22),
+                            border: Border.all(
                               color: selected
-                                  ? const Color(0xFF1A2E1F)
-                                  : const Color(0xFF151B22),
-                              border: Border.all(
+                                  ? const Color(0xFF4A7C59)
+                                  : const Color(0xFF2A3A2A),
+                              width: 1.5,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                selected
+                                    ? Icons.radio_button_checked
+                                    : Icons.radio_button_unchecked,
                                 color: selected
                                     ? const Color(0xFF4A7C59)
-                                    : const Color(0xFF2A3A2A),
-                                width: 1.5,
+                                    : Colors.white24,
+                                size: 18,
                               ),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  selected
-                                      ? Icons.radio_button_checked
-                                      : Icons.radio_button_unchecked,
-                                  color: selected
-                                      ? const Color(0xFF4A7C59)
-                                      : Colors.white24,
-                                  size: 20,
+                              const SizedBox(width: 10),
+                              Text(
+                                profile.name,
+                                style: GoogleFonts.robotoMono(
+                                  color: selected ? Colors.white : Colors.white60,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                const SizedBox(width: 14),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      profile.name,
-                                      style: GoogleFonts.robotoMono(
-                                        color: selected
-                                            ? Colors.white
-                                            : Colors.white60,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      '${profile.tableDistances.first}–${profile.tableDistances.last}M  •  ${profile.tableWindSpeeds.map((s) => '${s.toInt()}mph').join('/')}',
-                                      style: GoogleFonts.robotoMono(
-                                        color: selected
-                                            ? const Color(0xFF8BA888)
-                                            : Colors.white24,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    }).toList(),
-                  ),
-                ),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
 
               const SizedBox(height: 40),

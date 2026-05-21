@@ -2,8 +2,8 @@ import '../models/ballistic_profile.dart';
 
 const List<BallisticProfile> kBallisticProfiles = [
   BallisticProfile(
-    name: '.308 Win — 175gr SMK',
-    shortName: '.308 / 175gr',
+    name: '4 MPH GUN',
+    shortName: '4 MPH GUN',
     tableDistances: [100, 200, 300, 400, 500, 600, 700, 800],
     tableWindSpeeds: [4.0, 8.0, 12.0],
     windTable: [
@@ -19,8 +19,8 @@ const List<BallisticProfile> kBallisticProfiles = [
     elevationTable: [0.0, 1.1, 2.7, 4.8, 7.2, 10.2, 13.7, 17.6],
   ),
   BallisticProfile(
-    name: '.300 Win Mag — 190gr SMK',
-    shortName: '.300WM / 190gr',
+    name: '5 MPH GUN',
+    shortName: '5 MPH GUN',
     tableDistances: [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200],
     tableWindSpeeds: [5.0, 10.0, 15.0],
     windTable: [
