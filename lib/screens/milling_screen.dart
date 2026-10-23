@@ -1,4 +1,3 @@
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/milling_scenario.dart';
 import '../services/milling_scenario_generator.dart';
 import '../widgets/milling_viewport.dart';
+import '../services/sound_fx.dart';
 
 // ---------------------------------------------------------------------------
 // State
@@ -52,7 +52,7 @@ class MillingScreen extends ConsumerStatefulWidget {
 
 class _MillingScreenState extends ConsumerState<MillingScreen>
     with SingleTickerProviderStateMixin {
-  final _player = AudioPlayer();
+  final _sfx = SoundFx();
   late AnimationController _bannerController;
   final _inputController = TextEditingController();
   final _inputFocusNode = FocusNode();
@@ -85,7 +85,7 @@ class _MillingScreenState extends ConsumerState<MillingScreen>
   @override
   void dispose() {
     _bannerController.dispose();
-    _player.dispose();
+    _sfx.dispose();
     _inputController.dispose();
     _inputFocusNode.dispose();
     super.dispose();
@@ -142,7 +142,7 @@ class _MillingScreenState extends ConsumerState<MillingScreen>
   void _handleSubmit(MillingScenario scenario, _MillingNotifier notifier) {
     if (_inputController.text.trim().isEmpty) return;
     final isHit = _checkAnswer(scenario);
-    _player.play(AssetSource(isHit ? 'sounds/hit.wav' : 'sounds/miss.wav'));
+    _sfx.play(isHit);
     notifier.submit();
     _showBanner(isHit, notifier, scenario.trueDistanceMeters);
   }

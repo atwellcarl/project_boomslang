@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- Replaced by `flutter build web --base-href` (tool/deploy_web.sh sets it). -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta name="description" content="Long-range marksmanship trainer: wind calls, milling and range drills.">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#0D1117">
+
+  <!-- Home Screen app on iOS. Status bar style "black" keeps the page below the status bar:
+       Flutter web doesn't apply iOS safe-area insets, so content must not run under it. -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="LRM">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="manifest" href="manifest.json">
+
+  <title>LRM Trainer</title>
+  <style>
+    html, body {
+      margin: 0; height: 100%; background: #0D1117;
+      overscroll-behavior: none;            /* no rubber-band bounce */
+      -webkit-user-select: none; user-select: none;
+      -webkit-touch-callout: none;          /* no long-press callout over the reticle */
+      -webkit-tap-highlight-color: transparent;
+    }
+    body { touch-action: none; }            /* pinch belongs to the scope, not Safari's page zoom */
+    #splash {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      color: #DCE5DC; font: 700 48px/1 -apple-system, "Helvetica Neue", sans-serif; letter-spacing: 4px;
+    }
+    #rotate {
+      display: none; position: fixed; inset: 0; z-index: 10; background: #0D1117; color: #DCE5DC;
+      align-items: center; justify-content: center; text-align: center; padding: 24px;
+      font: 600 16px/1.4 -apple-system, "Helvetica Neue", sans-serif;
+    }
+    /* The app is laid out for portrait. On a phone held sideways, ask to rotate back. */
+    @media (orientation: landscape) and (max-height: 500px) { #rotate { display: flex; } }
+  </style>
+</head>
+<body>
+  <div id="splash">LRM</div>
+  <div id="rotate">Turn your phone upright.<br>LRM Trainer runs in portrait.</div>
+  <script>
+    // Hide the splash once Flutter has drawn its first frame.
+    window.addEventListener("flutter-first-frame", () => document.getElementById("splash")?.remove());
+    // Play hit/miss sounds with the ringer on silent, like the native app (Safari 16.4+).
+    if (navigator.audioSession) navigator.audioSession.type = "playback";
+    // Offline support: sw.js keeps the app on the phone. Skipped on localhost so `flutter run` stays fresh.
+    if ("serviceWorker" in navigator && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    }
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

@@ -1,4 +1,3 @@
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,6 +7,7 @@ import '../models/wind_scenario.dart';
 import '../services/scenario_generator.dart';
 import '../widgets/wind_dial.dart';
 import '../widgets/answer_input.dart';
+import '../services/sound_fx.dart';
 
 class _TrainerState {
   final WindScenario scenario;
@@ -72,7 +72,7 @@ class WindTrainerScreen extends ConsumerStatefulWidget {
 
 class _WindTrainerScreenState extends ConsumerState<WindTrainerScreen>
     with SingleTickerProviderStateMixin {
-  final _player = AudioPlayer();
+  final _sfx = SoundFx();
   late AnimationController _bannerController;
   bool _isCorrect = false;
   int _bannerGen = 0;
@@ -90,7 +90,7 @@ class _WindTrainerScreenState extends ConsumerState<WindTrainerScreen>
   @override
   void dispose() {
     _bannerController.dispose();
-    _player.dispose();
+    _sfx.dispose();
     super.dispose();
   }
 
@@ -120,7 +120,7 @@ class _WindTrainerScreenState extends ConsumerState<WindTrainerScreen>
 
     ref.listen(_trainerProvider(key), (prev, next) {
       if (next.submitted && !(prev?.submitted ?? false)) {
-        _player.play(AssetSource(next.isCorrect ? 'sounds/hit.wav' : 'sounds/miss.wav'));
+        _sfx.play(next.isCorrect);
         _showBanner(next.isCorrect, notifier);
       }
     });

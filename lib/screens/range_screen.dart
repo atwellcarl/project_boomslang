@@ -1,5 +1,4 @@
 import 'dart:math';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,6 +8,7 @@ import '../models/range_scenario.dart';
 import '../models/range_target.dart';
 import '../services/range_scenario_generator.dart';
 import '../widgets/range_viewport.dart';
+import '../services/sound_fx.dart';
 
 // ---------------------------------------------------------------------------
 // State
@@ -92,7 +92,7 @@ class RangeScreen extends ConsumerStatefulWidget {
 
 class _RangeScreenState extends ConsumerState<RangeScreen>
     with SingleTickerProviderStateMixin {
-  final _player = AudioPlayer();
+  final _sfx = SoundFx();
   late AnimationController _bannerController;
 
   Offset _reticleOffset = Offset.zero;
@@ -123,7 +123,7 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
   @override
   void dispose() {
     _bannerController.dispose();
-    _player.dispose();
+    _sfx.dispose();
     super.dispose();
   }
 
@@ -354,8 +354,7 @@ class _RangeScreenState extends ConsumerState<RangeScreen>
                               : () {
                                   final isHit = _checkHit(scenario, vpSize);
                                   final clear = isHit && state.isRangeClear;
-                                  _player.play(AssetSource(
-                                      isHit ? 'sounds/hit.wav' : 'sounds/miss.wav'));
+                                  _sfx.play(isHit);
                                   notifier.submit();
                                   _showBanner(isHit, notifier, rangeClear: clear);
                                 },
