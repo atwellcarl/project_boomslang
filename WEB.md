@@ -4,27 +4,21 @@ The same Flutter code builds as a web app you add to the iPhone Home Screen. It 
 full-screen, has its own icon, and works offline once it has been opened once. The iOS
 and Android builds are unchanged.
 
-## Hosting plan
+## Hosting
 
-1. **Test on free GitHub Pages.** This repo is private, and free GitHub accounts only get
-   Pages on public repos. So the source stays here and only the compiled app is
-   pushed to a separate public repo, `atwellcarl/lrm-trainer`:
+Every push to `main` that touches the app runs `.github/workflows/pages.yml`. It runs
+the tests, builds with `tool/build_web.sh`, and publishes to
+`https://atwellcarl.github.io/project_boomslang/`. You can also run it by hand from the
+Actions tab. Settings → Pages → Source must be **GitHub Actions**, not a branch.
 
-   ```bash
-   tool/deploy_web.sh
-   ```
+To try a build locally:
 
-   One-time setup: create the empty public repo `lrm-trainer`, run the script once, then
-   in that repo choose Settings → Pages → Deploy from a branch → `gh-pages` / root.
-   The app is then at `https://atwellcarl.github.io/lrm-trainer/`.
+```bash
+tool/build_web.sh
+```
 
-   The public repo holds only minified JS, the rendering engine, sounds, fonts and icons. No Dart source.
-
-2. **Own domain later.** Point the domain at GitHub Pages, then deploy at the root:
-
-   ```bash
-   BASE_HREF=/ CNAME=lrm.example.com tool/deploy_web.sh
-   ```
+**Own domain later:** set Settings → Pages → Custom domain, then change the
+workflow's build step to `BASE_HREF=/ tool/build_web.sh`.
 
 Each deploy changes `sw.js`, so phones download the new version in the background and
 switch to it the next time the app is opened.
@@ -38,7 +32,7 @@ can save itself for offline use.
 
 | Area | Change |
 | --- | --- |
-| Offline | `web/sw.js` precaches the app (~12 MB). The deploy script stamps it with the build's file list. Flutter's own deprecated worker is turned off in `web/flutter_bootstrap.js`, since it unregisters itself and would take `sw.js` with it. |
+| Offline | `web/sw.js` precaches the app (~12 MB). The build script stamps it with the build's file list. Flutter's own deprecated worker is turned off in `web/flutter_bootstrap.js`, since it unregisters itself and would take `sw.js` with it. |
 | Engine | Built with `--no-web-resources-cdn`, so the rendering engine ships with the app instead of loading from Google's CDN. |
 | Fonts | Roboto Mono is bundled in `assets/google_fonts/` and runtime fetching is off. |
 | Sounds | `lib/services/sound_fx.dart` keeps hit and miss on separate preloaded players. iOS Safari only plays audio right after a tap, and swapping one player's file rebuilt the audio element first. Also lower latency on native. |

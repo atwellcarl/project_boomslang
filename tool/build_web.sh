@@ -1,19 +1,12 @@
 #!/usr/bin/env bash
-# Build the web (PWA) version and publish it to a public GitHub Pages repo.
+# Build the web (PWA) version into build/web, ready for GitHub Pages.
+# .github/workflows/pages.yml runs this on every push to main and publishes the result.
 #
-# The source repo stays private: only the compiled build/web output is pushed.
-#
-#   tool/deploy_web.sh                 # build + push to PAGES_REPO's gh-pages branch
-#   BASE_HREF=/ tool/deploy_web.sh     # for a custom domain served at the root
-#   DRY_RUN=1 tool/deploy_web.sh       # build only, don't push
-#
-# One-time setup: create the public repo (e.g. atwellcarl/lrm-trainer), run this
-# once, then in that repo's Settings → Pages pick "Deploy from a branch: gh-pages".
+#   tool/build_web.sh                                  # served at atwellcarl.github.io/project_boomslang/
+#   BASE_HREF=/ CNAME=lrm.example.com tool/build_web.sh  # own domain, served at the root
 set -euo pipefail
 
-PAGES_REPO="${PAGES_REPO:-git@github.com:atwellcarl/lrm-trainer.git}"
-REPO_NAME="$(basename "$PAGES_REPO" .git)"
-BASE_HREF="${BASE_HREF:-/$REPO_NAME/}"
+BASE_HREF="${BASE_HREF:-/project_boomslang/}"
 FLUTTER="${FLUTTER:-$(command -v flutter || echo "$HOME/development/flutter/bin/flutter")}"
 
 cd "$(dirname "$0")/.."
@@ -57,18 +50,4 @@ open(sw, "w").write(s)
 print(f"sw.js: {len(files)} files, version {h.hexdigest()[:12]}")
 EOF
 
-if [[ -n "${DRY_RUN:-}" ]]; then
-  echo "Built build/web with base href $BASE_HREF (dry run, not pushed)."
-  exit 0
-fi
-
-rev="$(git rev-parse --short HEAD)"
-tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
-cp -R build/web/. "$tmp/"
-cd "$tmp"
-git init -q -b gh-pages
-git add -A
-git commit -q -m "Deploy LRM Trainer web build from $rev"
-git push -f "$PAGES_REPO" gh-pages
-echo "Pushed to $PAGES_REPO (gh-pages), base href $BASE_HREF."
+echo "Built build/web with base href $BASE_HREF."
